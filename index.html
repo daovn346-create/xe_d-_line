@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AGV ULTIMATE CYBERPUNK DASHBOARD</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;…;900&family=Be+Vietnam+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.6/src/index.js"></script>
+<style>
+  :root {
+    --bg-deep:    #060b14;
+    --bg-panel:   #0d1624;
+    --border-dim: rgba(80,160,255,.18);
+    --border-glow:rgba(80,160,255,.55);
+    --cyan:  #3ee8ff;
+    --green: #22f07d;
+    --red:   #ff3e5e;
+    --amber: #ffb830;
+    --white: #e8f4ff;
+    --tab-active: #2563eb;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { 
+    margin: 0; padding: 0; 
+    width: 100vw; height: 100vh; 
+    position: fixed; top: 0; left: 0;
+    background: var(--bg-deep);
+    font-family: 'Be Vietnam Pro', sans-serif;
+    overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(62,232,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(62,232,255,.04) 1px, transparent 1px);
+    background-size: 40px 40px; animation: gridDrift 20s linear infinite; pointer-events: none;
+  }
+  @keyframes gridDrift { to { background-position: 40px 40px; } }
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient( 0deg, transparent, transparent 2px, rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px ); pointer-events: none;
+  }
+
+  #app-container {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column; align-items: center; padding: 10px;
+  }
+
+  .panel {
+    position: relative; width: 100%; max-width: 480px; height: 100%;
+    background: linear-gradient(160deg, #0d1a2e 0%, #08111f 100%);
+    border: 1px solid var(--border-dim); border-radius: 20px;
+    padding: 20px 16px; display: flex; flex-direction: column;
+    box-shadow: 0 0 0 1px rgba(62,232,255,.07), 0 8px 40px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+
+  .header { text-align: center; margin-bottom: 12px; flex-shrink: 0;}
+  .header-label { font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: .25em; color: var(--cyan); opacity: .6; text-transform: uppercase; margin-bottom: 2px; }
+  .header-title { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900; letter-spacing: .12em; color: var(--white); text-shadow: 0 0 20px rgba(62,232,255,.5); }
+  .header-line { margin: 8px auto 0; width: 120px; height: 1px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); opacity: .5; }
+.status-bar { display: flex; align-items: center; justify-content: space-between; background: rgba(62,232,255,.04); border: 1px solid rgba(62,232,255,.1); border-radius: 10px; padding: 8px 14px; margin-bottom: 12px; flex-shrink: 0;}
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-text { font-size: 11px; letter-spacing: .12em; color: var(--green); text-transform: uppercase; }
+  .status-id { font-family: 'Orbitron', monospace; font-size: 10px; color: rgba(255,255,255,.3); }
+
+  .tabs { display: flex; gap: 6px; background: rgba(255,255,255,.04); border: 1px solid var(--border-dim); border-radius: 12px; padding: 5px; margin-bottom: 15px; flex-shrink: 0;}
+  .tab { flex: 1; padding: 10px 0; border: none; border-radius: 9px; font-family: 'Be Vietnam Pro', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transition: all .25s ease; background: transparent; color: rgba(255,255,255,.35); }
+  .tab.active { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; box-shadow: 0 0 15px rgba(37,99,235,.5), inset 0 1px 0 rgba(255,255,255,.15); }
+
+  .view-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; animation: fadeUp .3s ease both; }
+  .hidden-view { display: none !important; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+
+  /* DRIVE VIEW */
+  .drive-info { display: flex; justify-content: space-around; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 5px; flex-shrink: 0;}
+  .axis-label { font-family: 'Orbitron', monospace; font-size: 11px; color: rgba(255,255,255,0.6); }
+  .val-x { color: var(--green); font-weight: bold; font-size: 14px;}
+  .val-y { color: var(--cyan); font-weight: bold; font-size: 14px;}
+  #joyContainer { flex: 1; display: flex; justify-content: center; align-items: center; position: relative;}
+  canvas { outline: none; touch-action: none; max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* LIFT VIEW */
+  .controls { display: flex; flex-direction: column; gap: 10px; justify-content: center; overflow-y: auto;}
+  .btn { position: relative; width: 100%; padding: 0; border: none; border-radius: 16px; cursor: pointer; overflow: hidden; transition: transform .12s ease, box-shadow .2s ease; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .btn:active { transform: scale(.975); }
+  .btn-inner { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 20px 20px; position: relative; z-index: 1; }
+.btn-up { background: linear-gradient(145deg, #0d5c35 0%, #12753f 40%, #0f6535 100%); border: 1px solid rgba(34,240,125,.3); box-shadow: 0 4px 24px rgba(34,240,125,.22), inset 0 1px 0 rgba(255,255,255,.1); }
+  .btn-stop { background: linear-gradient(145deg, #5c0d1e 0%, #7d1530 40%, #6b1228 100%); border: 1px solid rgba(255,62,94,.3); box-shadow: 0 4px 24px rgba(255,62,94,.2), inset 0 1px 0 rgba(255,255,255,.1); }
+  .btn-down { background: linear-gradient(145deg, #5c3a00 0%, #7d5200 40%, #6b4800 100%); border: 1px solid rgba(255,184,48,.3); box-shadow: 0 4px 24px rgba(255,184,48,.18), inset 0 1px 0 rgba(255,255,255,.1); }
+  .btn-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .btn-up   .btn-icon { background: rgba(34,240,125,.18); box-shadow: 0 0 14px rgba(34,240,125,.35); }
+  .btn-stop .btn-icon { background: rgba(255,62,94,.18);  box-shadow: 0 0 14px rgba(255,62,94,.35); }
+  .btn-down .btn-icon { background: rgba(255,184,48,.18); box-shadow: 0 0 14px rgba(255,184,48,.35); }
+  .btn-text { text-align: left; width: 100%;}
+  .btn-label { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: .12em; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.4); display: block; }
+  .btn-sublabel { font-size: 9px; letter-spacing: .08em; margin-top: 3px; opacity: .55; text-transform: uppercase; display: block; }
+  .btn-up   .btn-sublabel { color: var(--green); }
+  .btn-stop .btn-sublabel { color: var(--red);   }
+  .btn-down .btn-sublabel { color: var(--amber);  }
+  .btn-bar { position: absolute; bottom: 0; left: 0; height: 2px; width: 0%; transition: width .0s; border-radius: 0 0 16px 16px; }
+  .btn-up   .btn-bar { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .btn-stop .btn-bar { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+  .btn-down .btn-bar { background: var(--amber);  box-shadow: 0 0 8px var(--amber); }
+  .btn.running .btn-bar { width: 100%; transition: width 2s linear; }
+  .btn.done .btn-bar { width: 100%; }
+
+  /* PIN TAB */
+  .pin-hero { display:flex;flex-direction:column;align-items:center; gap:10px;padding:5px 0 15px; }
+  .ring-wrap { position:relative;width:150px;height:150px; cursor:pointer; }
+  .ring-wrap:hover .ring-svg { filter: brightness(1.1); }
+  .ring-svg { transform:rotate(-90deg); transition: filter .3s; }
+  .ring-track { fill:none;stroke:rgba(255,255,255,.07);stroke-width:12; }
+  .ring-fill  { fill:none;stroke-width:12;stroke-linecap:round; transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1), stroke .5s ease; }
+  .ring-center { position:absolute;inset:0; display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px; pointer-events:none; }
+  .ring-pct { font-family:'Orbitron',monospace;font-size:32px;font-weight:900;line-height:1; transition:color .4s ease,text-shadow .4s ease; }
+.ring-sub  { font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3); }
+  .ring-bolt { font-size:16px;display:none;animation:boltPop .5s ease-in-out infinite alternate; }
+  .ring-bolt.show { display:block; }
+  @keyframes boltPop { from{transform:scale(1);opacity:.7} to{transform:scale(1.25);opacity:1} }
+  .ring-hint { font-size:9px;letter-spacing:.1em;text-transform:uppercase; color:rgba(255,255,255,.2);text-align:center; }
+  .pin-badge { font-size:10px;font-weight:700;letter-spacing:.1em; padding:5px 18px;border-radius:20px;text-transform:uppercase; transition:all .4s ease; }
+  .pin-metrics { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+  .metric-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:18px;padding:15px 15px 12px; position:relative;overflow:hidden; transition:border-color .3s, box-shadow .3s; }
+  .metric-card:hover { border-color:rgba(255,255,255,.18);box-shadow:0 6px 24px rgba(0,0,0,.35); }
+  .metric-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:18px 18px 0 0; }
+  .metric-card.volt::before { background:linear-gradient(90deg,transparent,#3ee8ff,transparent); }
+  .metric-card.amp::before  { background:linear-gradient(90deg,transparent,#a78bfa,transparent); }
+  .metric-icon { width:32px;height:32px;border-radius:10px; display:flex;align-items:center;justify-content:center; margin-bottom:10px; }
+  .metric-card.volt .metric-icon { background:rgba(62,232,255,.1);box-shadow:0 0 12px rgba(62,232,255,.15); }
+  .metric-card.amp  .metric-icon { background:rgba(167,139,250,.1);box-shadow:0 0 12px rgba(167,139,250,.15); }
+  .metric-val { font-family:'Orbitron',monospace;font-size:24px;font-weight:900;line-height:1; display:block;margin-bottom:4px;transition:color .4s,text-shadow .4s; }
+  .metric-card.volt .metric-val { color:var(--cyan);  text-shadow:0 0 18px rgba(62,232,255,.55); }
+  .metric-card.amp  .metric-val { color:#a78bfa;      text-shadow:0 0 18px rgba(167,139,250,.55); }
+  .metric-unit { font-family:'Orbitron',monospace;font-size:12px;font-weight:400;opacity:.55; }
+  .metric-lbl { font-size:9px;letter-spacing:.14em;text-transform:uppercase; color:rgba(255,255,255,.3);display:block;margin-bottom:10px; }
+  .metric-trend { height:3px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden; }
+  .metric-trend-fill { height:100%;border-radius:3px;transition:width .8s ease; }
+  .metric-card.volt .metric-trend-fill { background:linear-gradient(90deg,#1a8f9e,#3ee8ff); }
+  .metric-card.amp  .metric-trend-fill { background:linear-gradient(90deg,#6d28d9,#a78bfa); }
+  .metric-live { position:absolute;top:10px;right:10px; width:6px;height:6px;border-radius:50%; background:var(--green);box-shadow:0 0 6px var(--green); animation:pulse 1.5s ease-in-out infinite; }
+
+  /* HÀNH TRÌNH TAB (LIVE) */
+.ht-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+  .ht-stat { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 10px 12px; text-align: center; }
+  .ht-stat-val { font-family: 'Orbitron', monospace; font-size: 15px; font-weight: 700; color: var(--cyan); display: block; transition: 0.3s; }
+  .ht-stat-lbl { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.3); display: block; margin-top: 3px; }
+  
+  .ht-controls { display: flex; gap: 8px; margin-bottom: 14px; }
+  .ht-btn { flex: 1; padding: 9px 0; border: none; border-radius: 10px; font-family: 'Be Vietnam Pro', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; transition: all .2s ease; }
+  .ht-btn-start { background: linear-gradient(135deg,#0a4a25,#12753f); border: 1px solid rgba(34,240,125,.3); color: #22f07d; box-shadow: 0 2px 14px rgba(34,240,125,.2); pointer-events: none; }
+  .ht-btn-excel { background: linear-gradient(135deg,#0c3d1e,#1a6b32); border: 1px solid rgba(34,220,100,.3); color: #4ade80; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 14px rgba(34,220,100,.15); pointer-events: auto; cursor: pointer; }
+  .ht-btn-excel:hover { box-shadow: 0 4px 22px rgba(34,220,100,.35); }
+
+  .ht-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-right: 4px; flex: 1; margin-bottom: 10px; }
+  .ht-list::-webkit-scrollbar { width: 4px; }
+  .ht-list::-webkit-scrollbar-track { background: rgba(255,255,255,.04); border-radius: 4px; }
+  .ht-list::-webkit-scrollbar-thumb { background: rgba(62,232,255,.2); border-radius: 4px; }
+
+  .ht-step { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 10px 12px; transition: all .3s ease; position: relative; overflow: hidden; }
+  .ht-step::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 12px 0 0 12px; background: rgba(255,255,255,.08); transition: background .3s; }
+  .ht-step.done   { background: rgba(34,240,125,.05); border-color: rgba(34,240,125,.18); }
+  .ht-step.done::before  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .ht-step.active { background: rgba(62,232,255,.06); border-color: rgba(62,232,255,.3); box-shadow: 0 0 18px rgba(62,232,255,.08); animation: stepPulse 1s ease-in-out infinite alternate; }
+  .ht-step.active::before { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+  .ht-step.skip   { opacity: .35; }
+  @keyframes stepPulse { from{box-shadow:0 0 10px rgba(62,232,255,.06)} to{box-shadow:0 0 22px rgba(62,232,255,.18)} }
+.ht-num { min-width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; background: rgba(255,255,255,.06); color: rgba(255,255,255,.35); flex-shrink: 0; transition: all .3s; }
+  .ht-step.done   .ht-num { background: rgba(34,240,125,.18); color: var(--green); }
+  .ht-step.active .ht-num { background: rgba(62,232,255,.18); color: var(--cyan); }
+
+  .ht-icon { width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; background: rgba(255,255,255,.05); transition: background .3s; }
+  .ht-step.done   .ht-icon { background: rgba(34,240,125,.1); }
+  .ht-step.active .ht-icon { background: rgba(62,232,255,.12); }
+
+  .ht-info { flex: 1; min-width: 0; }
+  .ht-name { font-size: 12px; font-weight: 700; color: var(--white); display: block; margin-bottom: 2px; transition: color .3s; }
+  .ht-step.active .ht-name { color: var(--cyan); }
+  .ht-step.done   .ht-name { color: rgba(255,255,255,.6); }
+  .ht-desc { font-size: 9px; color: rgba(255,255,255,.3); letter-spacing: .04em; display: block; line-height: 1.3;}
+  .ht-meta { text-align: right; flex-shrink: 0; }
+  .ht-dur { font-family: 'Orbitron', monospace; font-size: 10px; color: rgba(255,255,255,.2); display: block; }
+  .ht-step.done   .ht-dur { color: var(--green); }
+  .ht-step.active .ht-dur { color: var(--cyan); animation: blink .8s ease infinite alternate; }
+  @keyframes blink { from{opacity:.5} to{opacity:1} }
+  .ht-tick { width: 16px; height: 16px; display: none; margin-top: 4px; margin-left: auto; color: #22f07d; }
+  .ht-step.done .ht-tick { display: block; }
+
+  /* Footer */
+  .footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.05); flex-shrink: 0;}
+  .footer-time { font-family: 'Orbitron', monospace; font-size: 10px; color: rgba(255,255,255,.25); letter-spacing: .1em; }
+  .footer-mode { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--cyan); opacity: .45; transition: 0.3s;}
+
+  /* Toast */
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--bg-panel); border: 1px solid var(--border-dim); border-radius: 12px; padding: 12px 22px; font-size: 13px; font-weight: 600; letter-spacing: .05em; color: var(--white); box-shadow: 0 8px 30px rgba(0,0,0,.5); transition: transform .35s cubic-bezier(.22,1,.36,1), opacity .35s ease; opacity: 0; pointer-events: none; white-space: nowrap; z-index: 100; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app-container">
+<div class="panel">
+
+  <div class="header">
+    <div class="header-label">Automated Guided Vehicle</div>
+<div class="header-title">HỆ THỐNG AGV</div>
+    <div class="header-line"></div>
+  </div>
+
+  <div class="status-bar">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="status-dot"></div>
+      <span class="status-text">HỆ THỐNG SẴN SÀNG</span>
+    </div>
+    <span class="status-id">AGV-07 · UNIT 03</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="btnTabDrive">🚗 LÁI XE</button>
+    <button class="tab" id="btnTabLift">⬆⬇ NÂNG HẠ</button>
+    <button class="tab" id="btnTabPin">🔋 PIN</button>
+    <button class="tab" id="btnTabHanhTrinh">📍 HÀNH TRÌNH</button>
+  </div>
+
+  <div id="viewDrive" class="view-content">
+    <button class="btn btn-stop" id="modeBtn" style="margin-bottom: 12px; flex-shrink: 0; padding: 0;">
+        <div class="btn-inner" style="padding: 12px;">
+            <div class="btn-text" style="text-align: center;">
+                <span class="btn-label" id="modeLabel" style="font-size: 15px;">CHẾ ĐỘ: MANUAL</span>
+                <span class="btn-sublabel" style="color: var(--white); opacity: 0.7;">Nhấn để bật tự động dò line</span>
+            </div>
+        </div>
+    </button>
+    <div class="drive-info">
+      <span class="axis-label">TRỤC X: <span id="valX" class="val-x">0</span></span>
+      <span class="axis-label">TRỤC Y: <span id="valY" class="val-y">0</span></span>
+    </div>
+    <div id="joyContainer">
+      <canvas id="joystickCanvas" width="220" height="220"></canvas>
+    </div>
+  </div>
+
+  <div id="viewLift" class="view-content controls hidden-view">
+    <button class="btn btn-up" onclick="activateLift(this, 'NÂNG HÀNG LÊN', 1)">
+      <div class="btn-inner">
+        <div class="btn-icon">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+            <defs><filter id="gup" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <rect x="12" y="13" width="4" height="11" rx="2" fill="#22f07d" filter="url(#gup)"/>
+            <path d="M14 3 L23 15 H11 Z" fill="#22f07d" filter="url(#gup)"/>
+            <rect x="5" y="2" width="18" height="2.5" rx="1.25" fill="#22f07d" opacity=".7" filter="url(#gup)"/>
+          </svg>
+        </div>
+        <div class="btn-text">
+          <span class="btn-label">NÂNG HÀNG LÊN</span>
+          <span class="btn-sublabel">Lift · Raise cargo platform</span>
+        </div>
+      </div>
+      <div class="btn-bar"></div>
+    </button>
+
+    <button class="btn btn-stop" onclick="activateLift(this, 'DỪNG ĐỘNG CƠ', 0)">
+      <div class="btn-inner">
+        <div class="btn-icon">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+<defs><filter id="gst" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <circle cx="14" cy="14" r="11" stroke="#ff3e5e" stroke-width="2" fill="none" filter="url(#gst)"/>
+            <rect x="9" y="9" width="10" height="10" rx="2.5" fill="#ff3e5e" filter="url(#gst)"/>
+          </svg>
+        </div>
+        <div class="btn-text">
+          <span class="btn-label">DỪNG ĐỘNG CƠ</span>
+          <span class="btn-sublabel">Stop · Emergency motor halt</span>
+        </div>
+      </div>
+      <div class="btn-bar"></div>
+    </button>
+
+    <button class="btn btn-down" onclick="activateLift(this, 'HẠ HÀNG XUỐNG', 2)">
+      <div class="btn-inner">
+        <div class="btn-icon">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+            <defs><filter id="gdn" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <rect x="12" y="4" width="4" height="11" rx="2" fill="#ffb830" filter="url(#gdn)"/>
+            <path d="M14 25 L23 13 H11 Z" fill="#ffb830" filter="url(#gdn)"/>
+            <rect x="5" y="23.5" width="18" height="2.5" rx="1.25" fill="#ffb830" opacity=".7" filter="url(#gdn)"/>
+          </svg>
+        </div>
+        <div class="btn-text">
+          <span class="btn-label">HẠ HÀNG XUỐNG</span>
+          <span class="btn-sublabel">Lower · Descend cargo platform</span>
+        </div>
+      </div>
+      <div class="btn-bar"></div>
+    </button>
+  </div>
+
+  <div id="viewPin" class="view-content hidden-view" style="overflow-y:auto; overflow-x:hidden;">
+    <div class="pin-hero">
+      <div class="ring-wrap" id="ringWrap">
+        <svg class="ring-svg" width="150" height="150" viewBox="0 0 170 170">
+          <circle class="ring-track" cx="85" cy="85" r="70"/>
+          <circle class="ring-fill"  id="ringFill" cx="85" cy="85" r="70" stroke-dasharray="439.82" stroke-dashoffset="114.35"/>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct" id="ringPct">74%</div>
+          <div class="ring-sub">PIN</div>
+          <div class="ring-bolt" id="ringBolt">⚡</div>
+        </div>
+      </div>
+      <div class="ring-hint">Nhấn vào vòng tròn để bật / tắt sạc</div>
+      <div class="pin-badge" id="pinBadge">✔ BÌNH THƯỜNG</div>
+    </div>
+    <div class="pin-metrics">
+      <div class="metric-card volt">
+        <div class="metric-live"></div>
+        <div class="metric-icon"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><path d="M11 2v8h6l-6 10v-8H5l6-10z" fill="#3ee8ff" opacity=".9"/></svg></div>
+        <span class="metric-val" id="metVolt">24.6<span class="metric-unit"> V</span></span>
+        <span class="metric-lbl">Điện áp</span>
+<div class="metric-trend"><div class="metric-trend-fill" id="trendVolt" style="width:74%"></div></div>
+      </div>
+      <div class="metric-card amp">
+        <div class="metric-live"></div>
+        <div class="metric-icon"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><path d="M11 4 C7.134 4 4 7.134 4 11 C4 14.866 7.134 18 11 18 C14.866 18 18 14.866 18 11 C18 7.134 14.866 4 11 4Z" stroke="#a78bfa" stroke-width="1.8" fill="none"/><path d="M11 8v3.5l2.5 1.5" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="metric-val" id="metAmp">2.1<span class="metric-unit"> A</span></span>
+        <span class="metric-lbl">Dòng điện</span>
+        <div class="metric-trend"><div class="metric-trend-fill" id="trendAmp" style="width:35%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewHanhTrinh" class="view-content hidden-view">
+    <div class="ht-summary">
+      <div class="ht-stat">
+        <span class="ht-stat-val" id="htDone">0</span>
+        <span class="ht-stat-lbl">Hoàn thành</span>
+      </div>
+      <div class="ht-stat">
+        <span class="ht-stat-val" id="htCurrent">--</span>
+        <span class="ht-stat-lbl">Step ESP32</span>
+      </div>
+      <div class="ht-stat">
+        <span class="ht-stat-val" id="htElapsed">0s</span>
+        <span class="ht-stat-lbl">Thời gian</span>
+      </div>
+    </div>
+
+    <div class="ht-controls">
+      <button class="ht-btn ht-btn-start" id="htBtnStart">
+        <span style="display:inline-flex;align-items:center;gap:6px;justify-content:center;">
+          <svg id="htBtnIcon" width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="1.5" y="1" width="3" height="9" rx="1"/><rect x="6.5" y="1" width="3" height="9" rx="1"/></svg>
+          <span id="htBtnTxt">ĐANG ĐỢI DATA...</span>
+        </span>
+      </button>
+      <button class="ht-btn ht-btn-excel" onclick="exportExcel()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <rect x="1" y="1" width="11" height="11" rx="2" stroke="#4ade80" stroke-width="1.2" fill="none"/>
+          <path d="M3 4h7M3 6.5h7M3 9h4" stroke="#4ade80" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        EXCEL
+      </button>
+    </div>
+
+    <div class="ht-list" id="htList"></div>
+  </div>
+
+  <div class="footer">
+    <span class="footer-time" id="clock">--:--:--</span>
+    <span class="footer-mode" id="footerMode">DRIVE MODE</span>
+  </div>
+
+</div>
+</div> <div class="toast" id="toast"></div>
+
+<script>
+  // ==========================================
+  // E-RA INIT & REAL-TIME DATA SYNC (UPDATE)
+  // ==========================================
+  const eraWidget = new EraWidget();
+  
+  // Khai báo biến lưu cấu hình
+  let configData = null; // Dùng để lưu mảng Action gửi lệnh Lái xe / Nâng hạ
+  let configStep = null; // Dùng để lưu cấu hình đọc Hành Trình (V2)
+eraWidget.init({
+    needRealtimeConfigs: true, // BẮT BUỘC để dùng logic config.realtime_configs giống bài mẫu
+    
+    onConfiguration: (config) => { 
+        configData = config; // Lưu toàn bộ config để dùng cho việc Gửi action đi
+        
+        // Trích xuất cấu hình đọc giá trị từ App về (Luồng V_STEP)
+        if (config.realtime_configs && config.realtime_configs.length > 0) {
+            configStep = config.realtime_configs[0]; // Mặc định Datastream đầu tiên bạn set là Step
+        }
+    },
+    
+    onValues: (values) => {
+        // Đọc giá trị step được ESP32 gửi lên
+        if (configStep && values[configStep.id]) {
+            const espStep = parseInt(values[configStep.id].value);
+            syncStepFromESP(espStep);
+        }
+    }
+  });
+
+  function tick() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('vi-VN',{hour12:false});
+  }
+  tick(); setInterval(tick, 1000);
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ==========================================
+  // TABS & MODE SWITCH LOGIC
+  // ==========================================
+  const tabs = [
+    { btn: 'btnTabDrive', view: 'viewDrive', modeText: 'DRIVE MODE', color: 'var(--cyan)' },
+    { btn: 'btnTabLift', view: 'viewLift', modeText: 'LIFT MODE', color: 'var(--amber)' },
+    { btn: 'btnTabPin', view: 'viewPin', modeText: 'BATTERY MODE', color: 'var(--green)' },
+    { btn: 'btnTabHanhTrinh', view: 'viewHanhTrinh', modeText: 'LIVE TRACKING', color: '#22f07d' }
+  ];
+
+  tabs.forEach(tab => {
+      document.getElementById(tab.btn).addEventListener('click', () => {
+          tabs.forEach(t => {
+              document.getElementById(t.btn).classList.remove('active');
+              document.getElementById(t.view).classList.add('hidden-view');
+          });
+          document.getElementById(tab.btn).classList.add('active');
+          document.getElementById(tab.view).classList.remove('hidden-view');
+          
+          const fMode = document.getElementById('footerMode');
+          fMode.textContent = tab.modeText;
+          fMode.style.color = tab.color;
+      });
+  });
+
+  // AUTO / MANUAL LOGIC
+  let isAuto = 0; 
+  const modeBtn = document.getElementById('modeBtn');
+  const modeLabel = document.getElementById('modeLabel');
+
+  modeBtn.addEventListener('click', () => {
+    isAuto = isAuto === 0 ? 1 : 0; 
+    if(isAuto === 1) {
+        modeLabel.innerText = "CHẾ ĐỘ: TỰ ĐỘNG (AUTO)";
+        modeBtn.classList.replace('btn-stop', 'btn-up');
+    } else {
+        modeLabel.innerText = "CHẾ ĐỘ: MANUAL";
+        modeBtn.classList.replace('btn-up', 'btn-stop');
+    }
+    forceStop(); 
+    showToast(isAuto ? "▶ ĐÃ BẬT TỰ ĐỘNG DÒ LINE" : "⏹ ĐÃ TẮT TỰ ĐỘNG");
+  });
+// LIFT LOGIC (Đã sửa lại gọi action từ configData)
+  let activeBtn = null;
+  function activateLift(btn, label, cmdValue) {
+    if (activeBtn) {
+      activeBtn.classList.remove('running','done');
+      const bar = activeBtn.querySelector('.btn-bar');
+      bar.style.transition = 'none'; bar.style.width='0%';
+      void bar.offsetWidth;
+    }
+    activeBtn = btn;
+    btn.classList.add('running');
+    const bar = btn.querySelector('.btn-bar');
+    bar.style.transition = 'none'; bar.style.width='0%';
+    void bar.offsetWidth;
+    bar.style.transition = 'width 2s linear';
+    bar.style.width = '100%';
+
+    setTimeout(() => { btn.classList.remove('running'); btn.classList.add('done'); }, 2000);
+    showToast('⚙ LỆNH: ' + label);
+
+    if (configData && configData.actions && configData.actions.length > 1) {
+        eraWidget.triggerAction(configData.actions[1].action, 1, { value: cmdValue });
+    }
+  }
+
+  // JOYSTICK LOGIC
+  const canvas = document.getElementById('joystickCanvas');
+  const ctx = canvas.getContext('2d');
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const baseRadius = 75;  
+  const stickRadius = 35; 
+
+  let targetX = 0, targetY = 0;
+  let isDrawing = false;
+  let lastSentValue = -1;
+  let stopSendCount = 0;
+
+  function drawJoystick(x, y) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath(); ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(62,232,255,0.3)'; ctx.stroke();
+      ctx.shadowBlur = 20; ctx.shadowColor = 'rgba(62,232,255,0.2)'; ctx.stroke(); ctx.shadowBlur = 0;
+      
+      ctx.beginPath(); ctx.arc(centerX + x, centerY + y, stickRadius, 0, Math.PI * 2);
+      ctx.fillStyle = isDrawing ? '#3ee8ff' : '#2563eb'; 
+      ctx.shadowBlur = isDrawing ? 20 : 10; ctx.shadowColor = isDrawing ? '#3ee8ff' : '#2563eb';
+      ctx.fill(); ctx.shadowBlur = 0;
+  }
+  drawJoystick(0, 0);
+
+  function getMousePos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      let clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      return {
+          x: (clientX - rect.left) * (canvas.width / rect.width) - centerX,
+          y: (clientY - rect.top) * (canvas.height / rect.height) - centerY
+      };
+  }
+
+  function updatePosition(evt) {
+      if (isAuto === 1) return;
+      let pos = getMousePos(evt);
+      let distance = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+      if (distance > baseRadius) { pos.x *= baseRadius / distance; pos.y *= baseRadius / distance; }
+      drawJoystick(pos.x, pos.y);
+      targetX = Math.round((pos.x / baseRadius) * 100);
+      targetY = Math.round(-(pos.y / baseRadius) * 100); 
+      document.getElementById('valX').innerText = targetX; 
+      document.getElementById('valY').innerText = targetY;
+  }
+function handleStart(e) {
+      if (!document.getElementById('viewDrive').classList.contains('hidden-view') && e.target === canvas) { 
+          e.preventDefault(); isDrawing = true; updatePosition(e); 
+      }
+  }
+  function handleMove(e) { if (!isDrawing) return; e.preventDefault(); updatePosition(e); }
+  function handleEnd(e) {
+      if (!isDrawing) return; isDrawing = false;
+      targetX = 0; targetY = 0; 
+      document.getElementById('valX').innerText = 0; document.getElementById('valY').innerText = 0;
+      drawJoystick(0, 0); forceStop();
+  }
+
+  document.addEventListener('mousedown', handleStart, {passive: false});
+  document.addEventListener('mousemove', handleMove, {passive: false});
+  document.addEventListener('mouseup', handleEnd, {passive: false});
+  document.addEventListener('touchstart', handleStart, {passive: false});
+  document.addEventListener('touchmove', handleMove, {passive: false});
+  document.addEventListener('touchend', handleEnd, {passive: false});
+  document.addEventListener('touchcancel', handleEnd, {passive: false});
+
+  function packData(x, y) { return (isAuto * 1000000) + ((x + 100) * 1000) + (y + 100); }
+
+  // (Đã sửa lại gọi action từ configData)
+  function sendToEra(val) {
+      if (configData && configData.actions && configData.actions.length > 0) {
+          eraWidget.triggerAction(configData.actions[0].action, 1, { value: val });
+      }
+  }
+
+  function forceStop() {
+      let val = packData(0, 0); sendToEra(val);
+      lastSentValue = val; stopSendCount = 1;
+  }
+
+  setInterval(() => {
+      if (isAuto === 1) return;
+      let currentPacked = packData(targetX, targetY);
+      if (targetX === 0 && targetY === 0) {
+          if (stopSendCount < 2) { sendToEra(currentPacked); lastSentValue = currentPacked; stopSendCount++; }
+      } else {
+          stopSendCount = 0; 
+          if (currentPacked !== lastSentValue) { sendToEra(currentPacked); lastSentValue = currentPacked; }
+      }
+  }, 250); 
+
+  // HÀNH TRÌNH LIVE (17 BƯỚC ĐỒNG BỘ ESP32)
+  const SVGICONS = {
+    forward: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9h10M10 5l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    turnL:   `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M14 9H6m0 0 3-3M6 9l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 5v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".4"/></svg>`,
+    turnR:   `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9h8m0 0-3-3m3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 5v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".4"/></svg>`,
+uturn:   `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 13V7a4 4 0 0 1 8 0v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M11 11l2-3 2 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    wait:    `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="2"/><path d="M9 5v4l2.5 2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    stop:    `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="2"/><rect x="6" y="6" width="6" height="6" rx="1.5" fill="currentColor"/></svg>`,
+    reverse: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M14 9H4m0 0 4-4M4 9l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    fwd:     `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 14V4M5 8l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  };
+
+  const ICONCOLOR = { forward:'#3ee8ff', turnL:'#ffb830', turnR:'#a78bfa', uturn:'#ff9d3e', wait:'#22f07d', stop:'#ff3e5e', reverse:'#ff9d3e', fwd:'#3ee8ff' };
+
+  const STEPS = [
+    { id:0,  svgKey:'forward', name:'Tiến tới ngã tư 1', desc:'Dò line đến giao lộ đầu tiên', dur:'Auto' },
+    { id:1,  svgKey:'turnR',   name:'Rẽ phải vào Trạm 1', desc:'Bẻ lái góc 90° vào trạm', dur:'0.35s' },
+    { id:2,  svgKey:'forward', name:'Tiến vào điểm nhận', desc:'Dò line đến vạch đích trạm 1', dur:'Auto' },
+    { id:3,  svgKey:'wait',    name:'NÂNG HÀNG', desc:'Dừng 10s để động cơ bước nâng lên', dur:'10.0s' },
+    { id:4,  svgKey:'uturn',   name:'Quay đầu 180°', desc:'Pivot xoay ngược xe', dur:'0.75s' },
+    { id:5,  svgKey:'forward', name:'Tiến ra đường chính', desc:'Dò line trở ra giao lộ', dur:'Auto' },
+    { id:6,  svgKey:'turnL',   name:'Rẽ trái lên đường', desc:'Bẻ lái hướng về trạm 2', dur:'0.35s' },
+    { id:7,  svgKey:'forward', name:'Tiến tới ngã tư 2', desc:'Dò line thẳng đường chính', dur:'Auto' },
+    { id:8,  svgKey:'turnR',   name:'Lách mũi đưa đuôi', desc:'Rẽ phải để tạo góc lùi xe', dur:'0.40s' },
+    { id:9,  svgKey:'stop',    name:'Nắn xe tại vạch lùi', desc:'Tiến nhẹ chốt vị trí thẳng', dur:'0.30s' },
+    { id:10, svgKey:'wait',    name:'Dừng chờ lùi', desc:'Đứng im 3s chống nhiễu quán tính', dur:'3.0s' },
+    { id:11, svgKey:'reverse', name:'Lùi xe vào trạm 2', desc:'Lùi đến khi chạm hồng ngoại 5cm', dur:'Auto' },
+    { id:12, svgKey:'wait',    name:'HẠ HÀNG', desc:'Dừng 10s để động cơ bước hạ xuống', dur:'10.0s' },
+    { id:13, svgKey:'fwd',     name:'Thoát khỏi tường', desc:'Tiến mù 300ms nhích ra ngoài', dur:'0.30s' },
+{ id:14, svgKey:'forward', name:'Tiến ra ngã tư', desc:'Dò line ra điểm xuất phát', dur:'Auto' },
+    { id:15, svgKey:'turnR',   name:'Rẽ phải về Start', desc:'Bẻ lái hướng về điểm bắt đầu', dur:'0.35s' },
+    { id:16, svgKey:'fwd',     name:'Chạy về đích (Start)', desc:'Làm mù 3s để băng qua các vạch nhiễu', dur:'3.0s+' }
+  ];
+
+  let htRunning = false;
+  let htCurStep = -1;
+  let htStartTime = null;
+  let htElapsedTimer = null;
+  let htLog = [];
+
+  function htBuild() {
+    const list = document.getElementById('htList');
+    list.innerHTML = '';
+    STEPS.forEach(s => {
+      const col   = ICONCOLOR[s.svgKey] || '#3ee8ff';
+      const svg   = SVGICONS[s.svgKey]  || SVGICONS.forward;
+      const bgRgb = col === '#3ee8ff' ? '62,232,255' : col === '#ffb830' ? '255,184,48' : col === '#a78bfa' ? '167,139,250' : col === '#ff9d3e' ? '255,157,62' : col === '#22f07d' ? '34,240,125' : col === '#ff3e5e' ? '255,62,94'   : '62,232,255';
+      list.innerHTML += `
+        <div class="ht-step" id="hts-${s.id}">
+          <div class="ht-num">${String(s.id).padStart(2,'0')}</div>
+          <div class="ht-icon" style="color:${col};background:rgba(${bgRgb},.12);box-shadow:none;">${svg}</div>
+          <div class="ht-info">
+            <span class="ht-name">${s.name}</span>
+            <span class="ht-desc">${s.desc}</span>
+          </div>
+          <div class="ht-meta">
+            <span class="ht-dur" id="htd-${s.id}">${s.dur}</span>
+            <span class="ht-tick"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(34,240,125,.15)" stroke="#22f07d" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#22f07d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
+        </div>`;
+    });
+  }
+  htBuild();
+
+  function htMarkActive(idx) {
+    STEPS.forEach(s => {
+      const el = document.getElementById('hts-' + s.id);
+      if (!el) return;
+      el.classList.remove('active','done','skip');
+      if (s.id < idx)  el.classList.add('done');
+      if (s.id === idx) el.classList.add('active');
+      if (s.id > idx)  el.classList.add('skip');
+    });
+    document.getElementById('htCurrent').textContent = String(idx).padStart(2,'0');
+    document.getElementById('htDone').textContent = idx;
+    
+    const el = document.getElementById('hts-' + idx);
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+
+  function htUpdateElapsed() {
+    if (!htStartTime) return;
+    const sec = Math.floor((Date.now() - htStartTime) / 1000);
+    document.getElementById('htElapsed').textContent = sec + 's';
+  }
+
+  // Đồng bộ Step
+  let lastLoggedStep = -1;
+  function syncStepFromESP(espStep) {
+      if (espStep === htCurStep) return; 
+
+      if (!htRunning) {
+          htRunning = true;
+          htStartTime = Date.now();
+          htElapsedTimer = setInterval(htUpdateElapsed, 1000);
+document.getElementById('htBtnTxt').textContent = 'ĐANG CHẠY AUTO...';
+          document.getElementById('htBtnIcon').innerHTML = `<circle cx="5.5" cy="5.5" r="4" fill="#22f07d"/>`;
+      }
+
+      if (htCurStep >= 0 && htCurStep < STEPS.length) {
+          const prevStep = STEPS[htCurStep];
+          htLog.push({
+              buoc: prevStep.id, ten : prevStep.name, moTa: prevStep.desc,
+              thoiGian: prevStep.dur, trangThai: 'Hoàn thành', thoiDiemBatDau: new Date().toLocaleTimeString('vi-VN')
+          });
+      }
+
+      htCurStep = espStep;
+      htMarkActive(espStep);
+
+      if (espStep === 0 && htLog.length >= 15) {
+          showToast('🏁 Đã hoàn thành 1 chu trình về Start!');
+          document.getElementById('htDone').textContent = '17';
+      }
+      lastLoggedStep = espStep;
+  }
+
+  function exportExcel() {
+    if (htLog.length === 0) { showToast('⚠ Chưa có dữ liệu để xuất'); return; }
+    const header = ['Bước','Tên bước','Mô tả','Thời gian (Lý thuyết)','Trạng thái','Thời điểm bắt đầu'];
+    let rows = htLog.map(r => [r.buoc, r.ten, r.moTa, r.thoiGian, r.trangThai, r.thoiDiemBatDau]);
+    rows.push(['','','','Tổng số bước ghi nhận: ' + htLog.length,'','Xuất lúc: ' + new Date().toLocaleString('vi-VN')]);
+
+    const xmlRows = [header, ...rows].map(row => {
+      const cells = row.map((cell, ci) => {
+        const style = ci === 0 ? ' ss:StyleID="sNum"' : (row === header[0] ? ' ss:StyleID="sHdr"' : '');
+        return `<Cell${style}><Data ss:Type="${typeof cell==='number'?'Number':'String'}">${String(cell).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</Data></Cell>`;
+      }).join('');
+      return `<Row>${cells}</Row>`;
+    }).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="sHdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A5F" ss:Pattern="Solid"/></Style><Style ss:ID="sNum"><Alignment ss:Horizontal="Center"/></Style></Styles><Worksheet ss:Name="Hành Trình AGV"><Table><Column ss:Width="45"/><Column ss:Width="160"/><Column ss:Width="200"/><Column ss:Width="120"/><Column ss:Width="100"/><Column ss:Width="120"/>${xmlRows}</Table></Worksheet></Workbook>`;
+    
+    const blob = new Blob([xml], {type:'application/vnd.ms-excel;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'AGV_HanhTrinh_' + new Date().toISOString().slice(0,10) + '.xls';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Đã xuất file Excel thành công!');
+  }
+</script>
+</body>
+</html>
